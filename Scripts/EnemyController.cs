@@ -6,9 +6,11 @@ using UnityEngine.AI;
 public class EnemyController : MonoBehaviour
 {
     [Header("Stats")]
-    [SerializeField] private float maxHealth = 100f;
-    [SerializeField] private float damage = 10f;
-    [SerializeField] private float speed = 3f;
+    [SerializeField] private int maxHealth = 100;
+    [SerializeField] private int currentHealth;
+    [SerializeField] private float movementSpeed = 3f;
+    [SerializeField] private int damage = 10;
+    [SerializeField] private float attackSpeed = 2f;
 
     [Space(10)]
     [SerializeField] private float spotRange = 15f;
@@ -19,11 +21,14 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private Transform player;
 
     private NavMeshAgent agent;
+    private bool canAttack;
 
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-        agent.speed = speed;
+        agent.speed = movementSpeed;
+        ResetAttack();
+        currentHealth = maxHealth;
     }
 
     private void Update()
@@ -43,7 +48,30 @@ public class EnemyController : MonoBehaviour
 
     private void AttackPlayer()
     {
-        Debug.Log("Attacking player");
+        if (canAttack)
+        {
+            canAttack = false;
+            Invoke(nameof(ResetAttack), attackSpeed);
+
+            player.GetComponent<PlayerCombat>()?.Damage(damage);
+        }
+    }
+
+    private void ResetAttack()
+    {
+        canAttack = true;
+    }
+
+    public void Damage(int damage)
+    {
+        currentHealth -= damage;
+        currentHealth = Mathf.Clamp(currentHealth, 0, 100);
+        if (currentHealth == 0) Die();
+    }
+
+    private void Die()
+    {
+        Debug.Log("Enemy died");
     }
 
     /// <summary>
@@ -67,5 +95,8 @@ public class EnemyController : MonoBehaviour
 
         Gizmos.color = Color.white;
         Gizmos.DrawWireSphere(transform.position, spotRange);
+
+        if (Application.isPlaying)
+            Gizmos.DrawLine(transform.position, agent.destination);
     }
 }
