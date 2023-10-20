@@ -64,8 +64,9 @@ public class EnemyController : MonoBehaviour
 
     public void Damage(int damage)
     {
+        Debug.Log("Enemy \"" + transform.name + "\" damaged by " + damage);
         currentHealth -= damage;
-        currentHealth = Mathf.Clamp(currentHealth, 0, 100);
+        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         if (currentHealth == 0) Die();
     }
 

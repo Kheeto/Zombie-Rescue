@@ -40,24 +40,33 @@ public class PlayerCombat : MonoBehaviour
         // Melee weapons can damage multiple enemies in a short range
         if (weapon.type == WeaponType.Melee)
         {
+            Debug.Log("Attacking by melee");
             RaycastHit[] hits = Physics.SphereCastAll(
                 cam.transform.position, weapon.hitRadius, cam.transform.forward, weapon.range, weapon.whatIsEnemy);
             foreach (RaycastHit hit in hits)
             {
+                Debug.Log("Hit object \"" + hit.collider.name + "\"");
                 EnemyController enemy = hit.collider.gameObject.GetComponentInParent<EnemyController>();
                 if (enemy != null) enemy.Damage(weapon.damage);
+
+                BossController boss = hit.collider.gameObject.GetComponentInParent<BossController>();
+                if (boss != null) boss.Damage(weapon.damage);
             }
         }
         // Ranged weapons can damage a single enemy in a longer range and have limited ammo
         else if (weapon.type == WeaponType.Ranged && currentAmmo > 0)
         {
-            Debug.Log("shot");
+            Debug.Log("Shooting a bullet");
             currentAmmo--;
             RaycastHit hit;
             if (Physics.Raycast(cam.transform.position, cam.transform.forward, out hit, weapon.range, weapon.whatIsEnemy))
             {
-                EnemyController enemy = hit.collider.gameObject.GetComponentInParent<EnemyController>();
-                if (enemy != null) enemy.Damage(weapon.damage);
+                Debug.Log("Hit object \"" + hit.collider.name + "\"");
+                EnemyController enemy = hit.collider.gameObject.GetComponent<EnemyController>();
+                if (enemy) enemy.Damage(weapon.damage);
+
+                BossController boss = hit.collider.gameObject.GetComponentInParent<BossController>();
+                if (boss != null) boss.Damage(weapon.damage);
             }
         }
     }
