@@ -16,7 +16,9 @@ public class Weapon : ScriptableObject
     public float hitRadius;
 
     [Header("Ranged Weapon")]
-    public int ammoAmount;
+    public int currentAmmo;
+    public int reloadAmount;
+    public float reloadDuration;
 }
 
 public enum WeaponType

@@ -14,13 +14,12 @@ public class PlayerCombat : MonoBehaviour
     [Header("References")]
     [SerializeField] private Camera cam;
 
-    private int currentAmmo;
     private bool canAttack;
 
     private void Awake()
     {
         currentHealth = maxHealth;
-        currentAmmo = weapon.ammoAmount;
+        weapon.currentAmmo = weapon.reloadAmount;
         ResetAttack();
     }
 
@@ -29,6 +28,10 @@ public class PlayerCombat : MonoBehaviour
         if (canAttack && Input.GetMouseButtonDown(0))
         {
             Attack();
+        }
+        if (weapon.currentAmmo < weapon.reloadAmount && Input.GetKeyDown(KeyCode.R))
+        {
+            Invoke(nameof(Reload), weapon.reloadDuration);
         }
     }
 
@@ -54,10 +57,10 @@ public class PlayerCombat : MonoBehaviour
             }
         }
         // Ranged weapons can damage a single enemy in a longer range and have limited ammo
-        else if (weapon.type == WeaponType.Ranged && currentAmmo > 0)
+        else if (weapon.type == WeaponType.Ranged && weapon.currentAmmo > 0)
         {
             Debug.Log("Shooting a bullet");
-            currentAmmo--;
+            weapon.currentAmmo--;
             RaycastHit hit;
             if (Physics.Raycast(cam.transform.position, cam.transform.forward, out hit, weapon.range, weapon.whatIsEnemy))
             {
@@ -69,6 +72,11 @@ public class PlayerCombat : MonoBehaviour
                 if (boss != null) boss.Damage(weapon.damage);
             }
         }
+    }
+
+    private void Reload()
+    {
+        weapon.currentAmmo = weapon.reloadAmount;
     }
 
     public void Damage(int damage)
