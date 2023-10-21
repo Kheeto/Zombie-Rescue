@@ -5,9 +5,12 @@ using UnityEngine.AI;
 
 public class EnemyController : MonoBehaviour
 {
+    [SerializeField] private EnemyState currentState;
+
     [Header("Stats")]
     [SerializeField] private int maxHealth = 100;
     [SerializeField] private int currentHealth;
+    [SerializeField] private float lookSpeed = 3f;
     [SerializeField] private float movementSpeed = 3f;
     [SerializeField] private int damage = 10;
     [SerializeField] private float attackSpeed = 2f;
@@ -15,6 +18,13 @@ public class EnemyController : MonoBehaviour
     [Space(10)]
     [SerializeField] private float spotRange = 15f;
     [SerializeField] private float attackRange = 2f;
+    [SerializeField] private float patrolRange = 8f;
+    [SerializeField] private float patrolDelay = 1f;
+    [Range(0, 1)]
+    [SerializeField] private float flankChance = 0.3f;
+    [SerializeField] private float flankRange = 5f;
+    [Range(0, 1)]
+    [SerializeField] private float followPlayerChance = 0.3f;
     [SerializeField] private LayerMask visionMask;
 
     [Header("References")]
@@ -22,32 +32,132 @@ public class EnemyController : MonoBehaviour
 
     private NavMeshAgent agent;
     private bool canAttack;
+    private bool canPatrol;
+
+    public enum EnemyState
+    {
+        Idle,
+        FollowingPlayer,
+        AttackingPlayer,
+        FlankingPlayer
+    }
 
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
         agent.speed = movementSpeed;
-        ResetAttack();
         currentHealth = maxHealth;
+        ResetAttack();
+        ResetPatrol();
     }
 
     private void Update()
     {
-        if (IsPlayerVisible())
+        LookAtPlayer();
+        StateMachine();
+    }
+
+    /// <summary>
+    /// By default, the NavMesh won't rotate towards the player if he is within the stopping distance.
+    /// </summary>
+    private void LookAtPlayer()
+    {
+        if (Vector3.Distance(transform.position, player.position) <= agent.stoppingDistance)
         {
-            float distance = Vector3.Distance(transform.position, player.position);
-            if (distance < attackRange) AttackPlayer();
-            FollowPlayer();
+            Vector3 direction = (player.position - transform.position).normalized;
+            Quaternion rotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, rotation, lookSpeed * Time.deltaTime);
         }
     }
 
-    private void FollowPlayer()
+    /// <summary>
+    /// Perform different actions based on the current state.
+    /// </summary>
+    private void StateMachine()
     {
-        agent.SetDestination(player.position);
+        switch (currentState)
+        {
+            case EnemyState.Idle:
+                Idle();
+                break;
+            case EnemyState.FollowingPlayer:
+                FollowPlayer();
+                break;
+            case EnemyState.AttackingPlayer:
+                AttackPlayer();
+                break;
+            case EnemyState.FlankingPlayer:
+                FlankPlayer();
+                break;
+        }
+    }
+    
+    /// <summary>
+    /// Follow or flank the player if he is visible. Otherwise move randomly around the map.
+    /// </summary>
+    private void Idle()
+    {
+        if (IsPlayerVisible())
+        {
+            agent.SetDestination(player.position);
+
+            // Choose whether to flank or follow directly
+            if (Random.Range(0f, 1f) < flankChance)
+            {
+                MoveRandomly(flankRange);
+                currentState = EnemyState.FlankingPlayer;
+            }
+            else {
+                currentState = EnemyState.FollowingPlayer;
+            }
+            return;
+        }
+
+        // Enemies have a chance of following the player even if he is not visible.
+        if (Random.Range(0f, 1f) < followPlayerChance)
+        {
+            agent.SetDestination(player.position);
+            return;
+        }
+
+        float distance = Vector3.Distance(transform.position, agent.destination);
+        // If the enemy has no path to follow, choose a random position
+        if ((!agent.hasPath || distance <= agent.stoppingDistance + 0.2f) && canPatrol)
+        {
+            MoveRandomly(patrolRange);
+            Invoke(nameof(ResetPatrol), patrolDelay);
+        }
     }
 
+    /// <summary>
+    /// Follow the player if he is visible, otherwise idle. Also start attacking if he is close enough.
+    /// </summary>
+    private void FollowPlayer()
+    {
+        if (IsPlayerVisible())
+        {
+            agent.SetDestination(player.position);
+            float distance = Vector3.Distance(transform.position, player.position);
+            if (distance < attackRange) currentState = EnemyState.AttackingPlayer;
+        }
+        else
+            currentState = EnemyState.Idle;
+    }
+
+    /// <summary>
+    /// Attack the player if he is close enough, otherwise, follow him if he is visible
+    /// or idle if he is not visible.
+    /// </summary>
     private void AttackPlayer()
     {
+        float distance = Vector3.Distance(transform.position, player.position);
+        if (distance > attackRange)
+        {
+            if (IsPlayerVisible()) currentState = EnemyState.FollowingPlayer;
+            else currentState = EnemyState.Idle;
+            return;
+        }
+
         if (canAttack)
         {
             canAttack = false;
@@ -57,10 +167,41 @@ public class EnemyController : MonoBehaviour
         }
     }
 
-    private void ResetAttack()
+    /// <summary>
+    /// Move towards a random position and then follow the player or flank again.
+    /// </summary>
+    private void FlankPlayer()
     {
-        canAttack = true;
+        // Check if the enemy has reached his flanking position
+        float distance = Vector3.Distance(transform.position, agent.destination);
+        if (distance <= agent.stoppingDistance + 0.2f)
+        {
+            if (IsPlayerVisible())
+                currentState = EnemyState.FollowingPlayer;
+            else {
+                if (Random.Range(0f, 1f) < flankChance)
+                    currentState = EnemyState.Idle;
+                else {
+                    agent.SetDestination(player.position);
+                    currentState = EnemyState.FollowingPlayer;
+                }
+            }
+        }
     }
+
+    /// <summary>
+    /// Choose a random point inside of the specified range and set the destination to it
+    /// </summary>
+    private void MoveRandomly(float range)
+    {
+        Vector2 randomPos = Random.insideUnitCircle;
+        Vector3 finalPos = new Vector3(randomPos.x, 0f, randomPos.y);
+        agent.SetDestination(transform.position + finalPos * range);
+    }
+
+    private void ResetAttack() { canAttack = true; }
+
+    private void ResetPatrol() { canPatrol = true; }
 
     public void Damage(int damage)
     {
