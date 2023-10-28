@@ -19,6 +19,21 @@ public class Weapon : ScriptableObject
     public int currentAmmo;
     public int reloadAmount;
     public float reloadDuration;
+
+    [Header("References")]
+    public GameObject shootSound;
+    public GameObject noAmmoSound;
+    public GameObject reloadSound;
+
+    [Header("Shotgun Reload")]
+    public bool useShotgunSounds;
+    public float bulletInterval;
+    public float pumpDelay;
+    public GameObject[] pumpSounds;
+    public GameObject[] reloadSounds;
+
+    [Header("Bullet impact")]
+    public GameObject bulletImpact;
 }
 
 public enum WeaponType
