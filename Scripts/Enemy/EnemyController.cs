@@ -25,14 +25,24 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private float flankRange = 5f;
     [Range(0, 1)]
     [SerializeField] private float followPlayerChance = 0.3f;
+    [SerializeField] private float groanDelay = 3f;
     [SerializeField] private LayerMask visionMask;
 
     [Header("References")]
     [SerializeField] private Transform player;
+    [SerializeField] private Animator animator;
+    [SerializeField] private GameObject ragdoll;
+
+    [Header("Prefabs")]
+    [SerializeField] private GameObject hitBlood;
+    [SerializeField] private GameObject deathBlood;
+    [SerializeField] private GameObject[] ambientSounds;
+    [SerializeField] private GameObject[] hitSounds;
 
     private NavMeshAgent agent;
     private bool canAttack;
     private bool canPatrol;
+    private bool canGroan;
 
     public enum EnemyState
     {
@@ -49,6 +59,7 @@ public class EnemyController : MonoBehaviour
         currentHealth = maxHealth;
         ResetAttack();
         ResetPatrol();
+        ResetGroan();
     }
 
     private void Update()
@@ -90,6 +101,11 @@ public class EnemyController : MonoBehaviour
                 FlankPlayer();
                 break;
         }
+
+        HandleSound();
+
+        float distance = Vector3.Distance(transform.position, agent.destination);
+        animator.SetBool("Walking", agent.hasPath && distance > agent.stoppingDistance);
     }
     
     /// <summary>
@@ -163,6 +179,7 @@ public class EnemyController : MonoBehaviour
             canAttack = false;
             Invoke(nameof(ResetAttack), attackSpeed);
 
+            animator.SetTrigger("Attack");
             player.GetComponent<PlayerCombat>()?.Damage(damage);
         }
     }
@@ -199,21 +216,45 @@ public class EnemyController : MonoBehaviour
         agent.SetDestination(transform.position + finalPos * range);
     }
 
+    private void HandleSound()
+    {
+        if (canGroan)
+        {
+            canGroan = false;
+            Invoke(nameof(ResetGroan), groanDelay + Random.Range(-1f, 1f));
+
+            int i = Random.Range(0, ambientSounds.Length);
+            Instantiate(ambientSounds[i], transform.position, Quaternion.identity, transform);
+        }
+    }
+
     private void ResetAttack() { canAttack = true; }
 
     private void ResetPatrol() { canPatrol = true; }
+
+    private void ResetGroan() { canGroan = true; }
 
     public void Damage(int damage)
     {
         Debug.Log("Enemy \"" + transform.name + "\" damaged by " + damage);
         currentHealth -= damage;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+
+        // Hit sound
+        int i = Random.Range(0, hitSounds.Length);
+        Instantiate(hitSounds[i], transform.position, Quaternion.identity);
+
+        Instantiate(hitBlood, transform.position + Vector3.up, Quaternion.identity);
+
         if (currentHealth == 0) Die();
     }
 
     private void Die()
     {
         Debug.Log("Enemy died");
+        Instantiate(deathBlood, transform.position + Vector3.up, Quaternion.identity);
+        Instantiate(ragdoll, transform.position, transform.rotation);
+        Destroy(gameObject);
     }
 
     /// <summary>
