@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 using TMPro;
@@ -15,11 +16,19 @@ public class MainMenu : MonoBehaviour
     [SerializeField] private AudioMixer mixer;
     [SerializeField] private TMP_Text musicText;
     [SerializeField] private TMP_Text soundText;
+    [SerializeField] private Slider sensivitySlider;
 
     private void Awake()
     {
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        if (PlayerPrefs.HasKey("Sensivity")) sensivitySlider.value = PlayerPrefs.GetFloat("Sensivity");
+        else
+        {
+            sensivitySlider.value = 0.5f;
+            PlayerPrefs.SetFloat("Sensivity", 0.5f);
+            PlayerPrefs.Save();
+        }
     }
 
     public void PlayButton()
@@ -38,6 +47,7 @@ public class MainMenu : MonoBehaviour
         {
             optionsMenu.SetActive(false);
             mainMenu.SetActive(true);
+            PlayerPrefs.Save();
         }
     }
 
@@ -69,6 +79,11 @@ public class MainMenu : MonoBehaviour
             mixer.SetFloat("SfxVolume", 0f);
             soundText.text = "SOUND: ON";
         }
+    }
+
+    public void OnSensivitySliderUpdated()
+    {
+        PlayerPrefs.SetFloat("Sensivity", sensivitySlider.value);
     }
 
     public void QuitButton()

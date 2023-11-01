@@ -13,6 +13,11 @@ public class PlayerCamera : MonoBehaviour
     {
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        if (PlayerPrefs.HasKey("Sensivity"))
+        {
+            lookSpeedX *= PlayerPrefs.GetFloat("Sensivity");
+            lookSpeedY *= PlayerPrefs.GetFloat("Sensivity");
+        }
     }
 
     private void Update()
