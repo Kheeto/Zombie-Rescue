@@ -26,6 +26,7 @@ public class LevelLoader : MonoBehaviour
 
     IEnumerator Transition(int index)
     {
+        Debug.Log("Starting transition to next level");
         transition.SetTrigger("Start");
 
         yield return new WaitForSeconds(0.5f);

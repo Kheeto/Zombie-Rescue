@@ -9,12 +9,13 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private int currentHealth;
 
     [Header("Weapons")]
-    [SerializeField] private Weapon weapon;
+    public Weapon weapon;
 
     [Header("References")]
     [SerializeField] private Camera cam;
-    [SerializeField] private Animator animator;
+    public Animator animator;
     [SerializeField] private Recoil recoil;
+    [SerializeField] private PauseMenu menu;
 
     [Header("Audio")]
     [SerializeField] private GameObject[] hitSounds;
@@ -32,6 +33,8 @@ public class PlayerCombat : MonoBehaviour
 
     private void Update()
     {
+        if (!animator.gameObject.activeInHierarchy) return;
+
         if (canAttack && Input.GetMouseButtonDown(0))
         {
             Attack();
@@ -62,26 +65,23 @@ public class PlayerCombat : MonoBehaviour
         // Melee weapons can damage multiple enemies in a short range
         if (weapon.type == WeaponType.Melee)
         {
+            Invoke(nameof(PlayShootSound), weapon.attackDelay);
             animator.SetTrigger("Shoot");
-            if (weapon.shootSound != null) Instantiate(weapon.shootSound, transform.position, Quaternion.identity, transform);
             Debug.Log("Attacking by melee");
             RaycastHit[] hits = Physics.SphereCastAll(
                 cam.transform.position, weapon.hitRadius, cam.transform.forward, weapon.range, weapon.whatIsEnemy);
             foreach (RaycastHit hit in hits)
             {
+                if (hit.collider.gameObject == gameObject) continue;
                 Debug.Log("Hit object \"" + hit.collider.name + "\"");
-                EnemyController enemy = hit.collider.gameObject.GetComponentInParent<EnemyController>();
-                if (enemy != null) enemy.Damage(weapon.damage);
-
-                BossController boss = hit.collider.gameObject.GetComponentInParent<BossController>();
-                if (boss != null) boss.Damage(weapon.damage);
+                StartCoroutine(HitEnemy(hit));
             }
         }
         // Ranged weapons can damage a single enemy in a longer range and have limited ammo
         else if (weapon.type == WeaponType.Ranged && weapon.currentAmmo > 0)
         {
+            PlayShootSound();
             animator.SetTrigger("Shoot");
-            if (weapon.shootSound != null) Instantiate(weapon.shootSound, transform.position, Quaternion.identity, transform);
             Invoke(nameof(ShotgunPump), weapon.pumpDelay);
             recoil.FireRecoil();
             Debug.Log("Shooting a bullet");
@@ -90,20 +90,36 @@ public class PlayerCombat : MonoBehaviour
             if (Physics.Raycast(cam.transform.position, cam.transform.forward, out hit, weapon.range, weapon.whatIsEnemy))
             {
                 Debug.Log("Hit object \"" + hit.collider.name + "\"");
-                EnemyController enemy = hit.collider.gameObject.GetComponent<EnemyController>();
-                if (enemy) enemy.Damage(weapon.damage);
-
-                BossController boss = hit.collider.gameObject.GetComponentInParent<BossController>();
-                if (boss != null) boss.Damage(weapon.damage);
-
-                Vector3 bulletDirection = (cam.transform.position - hit.point).normalized;
-                Instantiate(weapon.bulletImpact, hit.point, Quaternion.LookRotation(bulletDirection, cam.transform.up));
+                StartCoroutine(HitEnemy(hit));
             }
         }
         else if (weapon.type == WeaponType.Ranged && weapon.currentAmmo <= 0)
         {
             if (weapon.noAmmoSound != null) Instantiate(weapon.noAmmoSound, transform.position, Quaternion.identity, transform);
         }
+    }
+
+    IEnumerator HitEnemy(RaycastHit hit)
+    {
+        yield return new WaitForSeconds(weapon.attackDelay);
+
+        EnemyController enemy = hit.collider.gameObject.GetComponentInParent<EnemyController>();
+        if (enemy != null) enemy.Damage(weapon.damage);
+
+        BossController boss = hit.collider.gameObject.GetComponentInParent<BossController>();
+        if (boss != null) boss.Damage(weapon.damage);
+
+        Vector3 hitDirection = (cam.transform.position - hit.point).normalized;
+        if (weapon.type == WeaponType.Ranged)
+            Instantiate(weapon.bulletImpact, hit.point, Quaternion.LookRotation(hitDirection, cam.transform.up));
+
+        Rigidbody rb = hit.collider.gameObject.GetComponent<Rigidbody>();
+        if (rb != null) rb.AddForceAtPosition(-hitDirection * weapon.rigidbodyForce, hit.point, ForceMode.Impulse);
+    }
+
+    private void PlayShootSound()
+    {
+        if (weapon.shootSound != null) Instantiate(weapon.shootSound, transform.position, Quaternion.identity, transform);
     }
 
     private void Reload()
@@ -124,7 +140,7 @@ public class PlayerCombat : MonoBehaviour
     private void Die()
     {
         Debug.Log("Player died");
-        LevelLoader.instance?.LoadLevel(0);
+        menu.PlayerDied();
     }
 
     private void ResetAttack()
