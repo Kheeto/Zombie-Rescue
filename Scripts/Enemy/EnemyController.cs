@@ -21,10 +21,10 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private float patrolRange = 8f;
     [SerializeField] private float patrolDelay = 1f;
     [Range(0, 1)]
-    [SerializeField] private float flankChance = 0.3f;
+    [SerializeField] private float flankChance = 0.2f;
+    [SerializeField] private float flankChanceSelf = 0.4f;
     [SerializeField] private float flankRange = 5f;
-    [Range(0, 1)]
-    [SerializeField] private float followPlayerChance = 0.3f;
+    [SerializeField] private float followPlayerRadius = 0f;
     [SerializeField] private float groanDelay = 3f;
     [SerializeField] private LayerMask visionMask;
 
@@ -120,7 +120,12 @@ public class EnemyController : MonoBehaviour
             // Choose whether to flank or follow directly
             if (Random.Range(0f, 1f) < flankChance)
             {
-                MoveRandomly(flankRange);
+                // Enemy can flank by moving randomly around itself or around the player
+                if (Random.Range(0f, 1f) <= flankChanceSelf)
+                    agent.SetDestination(player.position + MoveRandomly(flankRange));
+                else
+                    agent.SetDestination(transform.position + MoveRandomly(flankRange));
+
                 currentState = EnemyState.FlankingPlayer;
             }
             else {
@@ -129,18 +134,20 @@ public class EnemyController : MonoBehaviour
             return;
         }
 
-        // Enemies have a chance of following the player even if he is not visible.
-        if (Random.Range(0f, 1f) < followPlayerChance)
+        float distance = Vector3.Distance(transform.position, player.position);
+
+        // Some enemies can follow the player even if he is not visible.
+        if (distance <= followPlayerRadius)
         {
             agent.SetDestination(player.position);
             return;
         }
 
-        float distance = Vector3.Distance(transform.position, agent.destination);
+        distance = Vector3.Distance(transform.position, agent.destination);
         // If the enemy has no path to follow, choose a random position
         if ((!agent.hasPath || distance <= agent.stoppingDistance + 0.2f) && canPatrol)
         {
-            MoveRandomly(patrolRange);
+            agent.SetDestination(transform.position + MoveRandomly(patrolRange));
             Invoke(nameof(ResetPatrol), patrolDelay);
         }
     }
@@ -207,18 +214,19 @@ public class EnemyController : MonoBehaviour
     }
 
     /// <summary>
-    /// Choose a random point inside of the specified range and set the destination to it
+    /// Returns a random point inside of the specified range
     /// </summary>
-    private void MoveRandomly(float range)
+    private Vector3 MoveRandomly(float range)
     {
         Vector2 randomPos = Random.insideUnitCircle;
         Vector3 finalPos = new Vector3(randomPos.x, 0f, randomPos.y);
-        agent.SetDestination(transform.position + finalPos * range);
+        return finalPos * range;
     }
 
     private void HandleSound()
     {
-        if (canGroan)
+        float distance = Vector3.Distance(transform.position, agent.destination);
+        if (canGroan && agent.hasPath && distance >= agent.stoppingDistance + 0.1f)
         {
             canGroan = false;
             Invoke(nameof(ResetGroan), groanDelay + Random.Range(-1f, 1f));
@@ -236,6 +244,9 @@ public class EnemyController : MonoBehaviour
 
     public void Damage(int damage)
     {
+        // Once the enemy is hit, it can always see the player
+        followPlayerRadius = 100f;
+
         Debug.Log("Enemy \"" + transform.name + "\" damaged by " + damage);
         currentHealth -= damage;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
@@ -278,6 +289,9 @@ public class EnemyController : MonoBehaviour
 
         Gizmos.color = Color.white;
         Gizmos.DrawWireSphere(transform.position, spotRange);
+
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, followPlayerRadius);
 
         if (Application.isPlaying)
             Gizmos.DrawLine(transform.position, agent.destination);
