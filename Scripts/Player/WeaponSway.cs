@@ -44,7 +44,7 @@ public class WeaponSway : MonoBehaviour
     {
         float mouseX = Input.GetAxis("Mouse X") * swayAmount;
         float mouseY = Input.GetAxis("Mouse Y") * swayAmount;
-        float movementZ = -Input.GetAxis("Horizontal") * movementSwayAmount;
+        float movementZ = -Input.GetAxis("Sway Horizontal") * movementSwayAmount;
 
         sway = Vector2.MoveTowards(sway, Vector2.zero, swayCurve.Evaluate(Time.deltaTime * swaySmoothCounteraction * sway.magnitude * swaySmooth));
         sway = Vector2.ClampMagnitude(new Vector2(mouseX, mouseY) + sway, maxSwayAmount);

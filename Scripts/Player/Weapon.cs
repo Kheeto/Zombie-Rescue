@@ -9,8 +9,10 @@ public class Weapon : ScriptableObject
     public WeaponType type;
     public int damage;
     public float attackSpeed;
+    public float attackDelay;
     public float range;
     public LayerMask whatIsEnemy;
+    public float rigidbodyForce;
 
     [Header("Melee Weapon")]
     public float hitRadius;
@@ -24,6 +26,7 @@ public class Weapon : ScriptableObject
     public GameObject shootSound;
     public GameObject noAmmoSound;
     public GameObject reloadSound;
+    public GameObject pickupSound;
 
     [Header("Shotgun Reload")]
     public bool useShotgunSounds;

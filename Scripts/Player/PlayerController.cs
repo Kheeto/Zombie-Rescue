@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -22,6 +23,8 @@ public class PlayerController : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private Transform orientation;
+    //[SerializeField] private GameObject crosshair;
+    //[SerializeField] private GameObject weaponHolder;
 
     [Header("Audio")]
     [SerializeField] private GameObject[] footstepSounds;
@@ -44,6 +47,27 @@ public class PlayerController : MonoBehaviour
 
         float speed = new Vector3(rb.velocity.x, 0f, rb.velocity.z).magnitude;
         bobbingAnimator.SetBool("Bobbing", speed >= bobbingMinimumSpeed);
+
+        // stuff for itch.io page screenshots
+        /*
+        DateTime dateTime = DateTime.Now;
+        if (Input.GetKeyDown(KeyCode.F12)) ScreenCapture.CaptureScreenshot("Screenshots/Screenshot_" + dateTime.Day
+            + "-" + dateTime.Month + "-" + dateTime.Year + "_" + dateTime.Hour + "-" + dateTime.Minute + "-" + dateTime.Second + ".png");
+
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            if (crosshair.activeSelf)
+            {
+                crosshair.SetActive(false);
+                weaponHolder.SetActive(false);
+            }
+            else
+            {
+                crosshair.SetActive(true);
+                weaponHolder.SetActive(true);
+            }
+        }
+        */
     }
 
     private void FixedUpdate()
@@ -80,7 +104,7 @@ public class PlayerController : MonoBehaviour
         canPlayFootstep = false;
         Invoke(nameof(ResetFootstep), footstepDelay);
 
-        int i = Random.Range(0, footstepSounds.Length);
+        int i = UnityEngine.Random.Range(0, footstepSounds.Length);
         Instantiate(footstepSounds[i], transform.position, Quaternion.identity, transform);
     }
 
@@ -91,7 +115,9 @@ public class PlayerController : MonoBehaviour
         if (other.transform.CompareTag("Portal"))
         {
             Debug.Log("Entered portal");
-            LevelLoader.instance?.LoadLevel(portalSceneIndex);
+            if (LevelLoader.instance != null) LevelLoader.instance.LoadLevel(portalSceneIndex);
+            else Debug.LogError("Level Loader instance is null!");
+
         }
     }
 }
